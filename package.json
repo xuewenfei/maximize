@@ -1,7 +1,7 @@
 {
-  "name": "maximize",
-  "version": "0.0.2",
-  "author": "Chase Douglas <chasedouglas@gmail.com>",
+  "name": "@morgul/maximize",
+  "version": "0.0.3",
+  "author": "Christopher S. Case <chris.case@g33xnexus.com>",
   "description": "Unobfuscate and beautify obfuscated/minified JavaScript code with source maps",
   "contributors": [
     {
