@@ -26,6 +26,56 @@ try {
   process.exit(-1);
 }
 
+function test() {
+  const rawSourceMap = {
+    version: 3,
+    file: 'min.js',
+    names: ['bar', 'baz', 'n'],
+    sources: ['one.js', 'two.js'],
+    sourceRoot: 'http://example.com/www/js/',
+    mappings: 'CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOC,IAAID;CCDb,IAAI,IAAM,SAAUE,GAClB,OAAOA'
+  };
+
+  const whatever = sourceMap.SourceMapConsumer.with(rawSourceMap, null, consumer => {
+
+    console.log(consumer.sources);
+    // [ 'http://example.com/www/js/one.js',
+    //   'http://example.com/www/js/two.js' ]
+
+    console.log(consumer.originalPositionFor({
+      line: 2,
+      column: 28
+    }));
+    // { source: 'http://example.com/www/js/two.js',
+    //   line: 2,
+    //   column: 10,
+    //   name: 'n' }
+
+    console.log(consumer.generatedPositionFor({
+      source: 'http://example.com/www/js/two.js',
+      line: 2,
+      column: 10
+    }));
+    // { line: 2, column: 28 }
+
+    consumer.sources.forEach((source) => {
+      const contents = consumer.sourceContentFor(source);
+      console.log('source:', source);
+      console.log('contents:', contents);
+      // map[path.basename(source)] = contents;
+    });
+
+    consumer.eachMapping(function (m) {
+      // console.log('mapping.m:', m);
+    });
+  });
+  console.log('whatever:', whatever);
+  whatever.then((res) => {
+    console.log(res);
+  })
+}
+test();
+
 function fetch(src) {
   switch (url.parse(src).protocol) {
     case 'http:':
@@ -114,7 +164,11 @@ Seq()
     });
 
     res.on('end', function() {
-      self.ok(new sourceMap.SourceMapConsumer(Buffer.concat(data).toString()));
+      var content = Buffer.concat(data).toString();
+      var mapObj = new sourceMap.SourceMapConsumer(content);
+      sourceMap.SourceMapConsumer.with(content, null, consumer => {
+        self.ok(consumer);
+      });
     });
 
     res.on('close', function() {
@@ -123,11 +177,17 @@ Seq()
     });
   })
   .seq('process', function(map) {
+
+    map.eachMapping(function (m) {
+      // console.log('mapping.m:', m);
+    });
     var sourceName='';
     var deobfuscated = falafel(this.vars.code, {locations: true}, function(node) {
       var orig;
        if (node.id) {
+        console.log('node.id:', node.loc);
         orig = map.originalPositionFor({line: node.id.loc.start.line, column: node.id.loc.start.column});
+        console.log('orig:', orig);
         if (orig.name) {
           if(sourceName!=orig.source) {
               sourceName=orig.source;
@@ -137,7 +197,9 @@ Seq()
             }
           }
       } else if (node.type === 'Identifier') {
+        console.log('node.Identifer:', node.loc);
         orig = map.originalPositionFor({line: node.loc.start.line, column: node.loc.start.column});
+        console.log('orig:', orig);
         if (orig.name) {
           if(sourceName!=orig.source) {
             sourceName=orig.source;
@@ -148,12 +210,13 @@ Seq()
         }
       }
     });
+    // console.log(deobfuscated.toString());
 
     var beautified = beautify(deobfuscated.toString(), args.beautify_opts);
     var re = /^(.*)(\/\*[a-z0-9\-_\/\.]+\*\/)(.*)$/igm;
     beautified = beautified.replace(re,'\r\n\r\n\r\n\r\n/**************************************************************/\r\n\r\n$2\r\n\r\n$1$3');
 
-    console.log(beautified);
+    // console.log(beautified);
   })
   ['catch'](function(err, stage) {
     console.error('Failed in stage ' + stage + ': ' + err.stack);
